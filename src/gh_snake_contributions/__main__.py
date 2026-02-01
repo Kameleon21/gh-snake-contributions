@@ -38,21 +38,21 @@ def parse_args() -> argparse.Namespace:
         "--width",
         "-W",
         type=int,
-        default=30,
-        help="Board width in cells (default: 30)",
+        default=52,
+        help="Board width in cells (default: 52, matches GitHub weeks)",
     )
     parser.add_argument(
         "--height",
         "-H",
         type=int,
-        default=15,
-        help="Board height in cells (default: 15)",
+        default=7,
+        help="Board height in cells (default: 7, matches GitHub days)",
     )
     parser.add_argument(
         "--cell-size",
         type=int,
-        default=16,
-        help="Cell size in pixels (default: 16)",
+        default=15,
+        help="Cell size in pixels (default: 15)",
     )
 
     # Game settings
@@ -66,8 +66,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--wall-threshold",
         type=int,
-        default=3,
-        help="Contribution level threshold for walls (default: 3)",
+        default=5,
+        help="Contribution level threshold for walls (default: 5, meaning no walls)",
     )
     parser.add_argument(
         "--ai-strategy",
@@ -106,9 +106,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--theme",
         "-t",
-        choices=["auto", "default", "halloween", "winter", "spring", "summer"],
-        default="auto",
-        help="Color theme (default: auto based on date)",
+        choices=["auto", "default", "halloween", "winter", "spring", "summer", "space"],
+        default="space",
+        help="Color theme (default: space)",
     )
 
     # Determinism

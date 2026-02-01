@@ -11,11 +11,11 @@ class Config:
     """Configuration for the Snake game."""
 
     # Board settings
-    width: int = 30
-    height: int = 15
-    cell_size: int = 16
+    width: int = 52  # Matches GitHub's 52 weeks
+    height: int = 7  # Matches GitHub's 7 days
+    cell_size: int = 15  # 52*15 = 780px width, fits README
     contribution_mode: Literal["walls", "food", "speed"] = "walls"
-    wall_threshold: int = 3  # Contribution level 3+ becomes wall (0-4 scale)
+    wall_threshold: int = 5  # No walls by default (max contribution is 4)
 
     # Game settings
     initial_length: int = 3
@@ -30,7 +30,7 @@ class Config:
     output_path: str = "snake.gif"
 
     # Theme settings
-    theme_mode: Literal["auto", "force", "disable"] = "auto"
+    theme_mode: Literal["auto", "force", "disable"] = "disable"  # Use default green theme
     forced_theme: str | None = None
 
     # Determinism

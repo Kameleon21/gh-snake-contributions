@@ -1,5 +1,6 @@
 """Frame rendering using Pillow."""
 
+import random
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw
@@ -28,6 +29,16 @@ class Canvas:
         self.width = config.width * config.cell_size
         self.height = config.height * config.cell_size
 
+        # Pre-generate star positions for space theme (seeded for consistency)
+        self._stars: list[tuple[int, int, int]] = []
+        if theme.name == "space":
+            rng = random.Random(42)  # Fixed seed for consistent stars
+            for _ in range(50):  # 50 stars
+                x = rng.randint(0, self.width - 1)
+                y = rng.randint(0, self.height - 1)
+                brightness = rng.randint(150, 255)
+                self._stars.append((x, y, brightness))
+
     def render_frame(self, state: GameState) -> Image.Image:
         """Render a single frame of the game.
 
@@ -40,6 +51,10 @@ class Canvas:
         # Create image with background color
         image = Image.new("RGB", (self.width, self.height), self.theme.background)
         draw = ImageDraw.Draw(image)
+
+        # Render stars for space theme
+        if self._stars:
+            self._render_stars(draw)
 
         # Render layers in order
         self._render_contribution_cells(draw, state)
@@ -92,6 +107,20 @@ class Canvas:
                         rect[3] - inset,
                     )
                     draw.rectangle(inner_rect, fill=color)
+
+    def _render_stars(self, draw: ImageDraw.ImageDraw) -> None:
+        """Render stars for space theme.
+
+        Args:
+            draw: ImageDraw object.
+        """
+        for x, y, brightness in self._stars:
+            color = (brightness, brightness, brightness)
+            draw.point((x, y), fill=color)
+            # Some stars are slightly larger
+            if brightness > 220:
+                draw.point((x + 1, y), fill=(brightness - 50, brightness - 50, brightness - 50))
+                draw.point((x, y + 1), fill=(brightness - 50, brightness - 50, brightness - 50))
 
     def _render_grid(self, draw: ImageDraw.ImageDraw) -> None:
         """Render grid lines.

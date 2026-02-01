@@ -8,11 +8,12 @@ on:
     inputs:
       theme:
         description: 'Theme override'
-        default: 'auto'
+        default: 'space'
         type: choice
         options:
-          - auto
+          - space
           - default
+          - auto
           - halloween
           - winter
           - spring
@@ -40,7 +41,7 @@ jobs:
 
       - name: Generate Snake Animation
         run: |
-          THEME="${{ github.event.inputs.theme || 'auto' }}"
+          THEME="${{ github.event.inputs.theme || 'space' }}"
           uv run gh-snake-contributions \
             --username "${{ github.repository_owner }}" \
             --theme "$THEME" \

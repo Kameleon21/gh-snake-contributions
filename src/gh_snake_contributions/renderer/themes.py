@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
-ThemeName = Literal["default", "halloween", "winter", "spring", "summer"]
+ThemeName = Literal["default", "halloween", "winter", "spring", "summer", "space"]
 
 
 @dataclass(frozen=True)
@@ -69,11 +69,11 @@ DEFAULT_THEME = Theme(
     contribution_2=(0, 109, 50),  # 40c463
     contribution_3=(38, 166, 65),  # 30a14e
     contribution_4=(57, 211, 83),  # 216e39
-    snake_head=(88, 166, 255),  # Blue head
-    snake_body=(56, 139, 253),
-    snake_tail=(47, 129, 247),
+    snake_head=(57, 211, 83),  # Bright green head (matches contribution_4)
+    snake_body=(38, 166, 65),  # Medium green body
+    snake_tail=(0, 109, 50),  # Darker green tail
     food=(255, 123, 114),  # Red food
-    wall=(110, 118, 129),  # Gray walls
+    wall=(55, 62, 71),  # Darker gray walls - more distinct
     text=(201, 209, 217),
 )
 
@@ -149,12 +149,31 @@ SUMMER_THEME = Theme(
     text=(255, 240, 200),
 )
 
+# Space theme with galaxy vibes
+SPACE_THEME = Theme(
+    name="space",
+    background=(8, 8, 24),  # Deep space blue-black
+    grid_line=(20, 20, 40),  # Subtle grid
+    contribution_0=(12, 12, 30),  # Empty space
+    contribution_1=(40, 20, 80),  # Purple nebula (low)
+    contribution_2=(80, 40, 140),  # Brighter purple
+    contribution_3=(120, 60, 180),  # Vibrant purple
+    contribution_4=(160, 100, 220),  # Bright magenta/purple
+    snake_head=(0, 255, 200),  # Cyan/teal head
+    snake_body=(0, 200, 160),  # Teal body
+    snake_tail=(0, 150, 120),  # Darker teal tail
+    food=(255, 220, 50),  # Golden star/food
+    wall=(60, 40, 100),  # Dark purple walls
+    text=(200, 200, 255),
+)
+
 THEMES: dict[ThemeName, Theme] = {
     "default": DEFAULT_THEME,
     "halloween": HALLOWEEN_THEME,
     "winter": WINTER_THEME,
     "spring": SPRING_THEME,
     "summer": SUMMER_THEME,
+    "space": SPACE_THEME,
 }
 
 
