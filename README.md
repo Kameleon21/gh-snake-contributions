@@ -2,7 +2,7 @@
 
 Transform your GitHub contributions into an animated Snake game GIF!
 
-![Snake Animation](snake.gif)
+![Snake Animation](https://raw.githubusercontent.com/Kameleon21/gh-snake-contributions/main/snake.gif)
 
 ## Features
 
