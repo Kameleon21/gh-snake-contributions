@@ -68,6 +68,7 @@ venv.bak/
 
 # Project specific
 *.gif
+!snake.gif
 !tests/fixtures/*.gif
 
 # uv
