@@ -1,3 +1,4 @@
+# GitHub Actions workflow to generate snake animation from contributions
 name: Generate Snake Animation
 
 on:
