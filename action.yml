@@ -1,0 +1,89 @@
+name: 'GitHub Snake Contributions'
+description: 'Generate an animated Snake game GIF from your GitHub contributions'
+author: 'Kamil Rogozinski'
+branding:
+  icon: 'play'
+  color: 'green'
+
+inputs:
+  username:
+    description: 'GitHub username to fetch contributions for'
+    required: false
+    default: ${{ github.repository_owner }}
+  output:
+    description: 'Output file path for the generated GIF'
+    required: false
+    default: 'snake.gif'
+  theme:
+    description: 'Color theme (auto, default, halloween, winter, spring, summer)'
+    required: false
+    default: 'auto'
+  mode:
+    description: 'Contribution mode (walls, food, speed)'
+    required: false
+    default: 'walls'
+  width:
+    description: 'Board width in cells'
+    required: false
+    default: '30'
+  height:
+    description: 'Board height in cells'
+    required: false
+    default: '15'
+  fps:
+    description: 'Frames per second'
+    required: false
+    default: '12'
+  max_duration:
+    description: 'Maximum animation duration in seconds'
+    required: false
+    default: '8.0'
+  seed:
+    description: 'Random seed for deterministic output'
+    required: false
+    default: ''
+
+outputs:
+  output_path:
+    description: 'Path to the generated GIF file'
+    value: ${{ steps.generate.outputs.output_path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        uv sync
+
+    - name: Generate Snake Animation
+      id: generate
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        cd ${{ github.action_path }}
+        SEED_ARG=""
+        if [ -n "${{ inputs.seed }}" ]; then
+          SEED_ARG="--seed ${{ inputs.seed }}"
+        fi
+        uv run gh-snake-contributions \
+          --username "${{ inputs.username }}" \
+          --output "${{ github.workspace }}/${{ inputs.output }}" \
+          --theme "${{ inputs.theme }}" \
+          --mode "${{ inputs.mode }}" \
+          --width "${{ inputs.width }}" \
+          --height "${{ inputs.height }}" \
+          --fps "${{ inputs.fps }}" \
+          --max-duration "${{ inputs.max_duration }}" \
+          $SEED_ARG
+        echo "output_path=${{ github.workspace }}/${{ inputs.output }}" >> $GITHUB_OUTPUT

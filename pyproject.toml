@@ -1,0 +1,30 @@
+[project]
+name = "gh-snake-contributions"
+version = "0.1.0"
+description = "Transform your GitHub contributions into an animated Snake game GIF"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pillow>=10.0.0",
+    "httpx>=0.25.0",
+]
+
+[project.scripts]
+gh-snake-contributions = "gh_snake_contributions.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gh_snake_contributions"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
