@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from ..game.board import Position
 from ..game.engine import GameState
 from ..game.snake import Direction
 from .pathfinding import bfs_path, evaluate_move_safety, find_safe_moves
@@ -11,7 +10,7 @@ from .pathfinding import bfs_path, evaluate_move_safety, find_safe_moves
 if TYPE_CHECKING:
     from ..config import Config
 
-AIStrategy = Literal["greedy", "bfs_safe", "survival"]
+AIStrategy = Literal["greedy", "bfs_safe", "survival", "commit_hunter"]
 
 
 @dataclass
@@ -37,8 +36,84 @@ class AIController:
             return self._bfs_safe_move(state)
         elif strategy == "survival":
             return self._survival_move(state)
+        elif strategy == "commit_hunter":
+            return self._commit_hunter_move(state)
         else:
             return self._bfs_safe_move(state)
+
+    def _commit_hunter_move(self, state: GameState) -> Direction:
+        """Prioritize visible commit chasing in food mode.
+
+        Strategy:
+        1. Collect remaining contribution cells.
+        2. Rank by distance to current head.
+        3. Search the top nearest targets for safe, short BFS paths.
+        4. Tie-break by continuing direction, then target contribution level.
+        5. Fallback to survival when no safe target path exists.
+        """
+        snake = state.snake
+        board = state.board
+        safe_moves = find_safe_moves(snake, board)
+
+        if not safe_moves:
+            return snake.direction
+
+        if self.config.contribution_mode != "food":
+            return self._bfs_safe_move(state)
+
+        obstacles = set(list(snake.body)[:-1])
+        if snake.growing:
+            obstacles.add(snake.tail)
+
+        candidate_targets = board.get_contribution_positions(
+            exclude=snake.get_body_positions(),
+            min_level=1,
+        )
+
+        if not candidate_targets:
+            return self._best_survival_move(state, safe_moves)
+
+        head = snake.head
+        candidate_targets.sort(
+            key=lambda pos: (
+                abs(pos.x - head.x) + abs(pos.y - head.y),
+                abs(pos.y - head.y),
+                abs(pos.x - head.x),
+            )
+        )
+
+        best_direction: Direction | None = None
+        best_rank: tuple[int, int, int] | None = None
+        min_safe_space = snake.length + 2
+
+        for target in candidate_targets[:12]:
+            path = bfs_path(head, target, board, obstacles)
+            if not path:
+                continue
+
+            next_direction = path[0]
+            if next_direction not in safe_moves:
+                continue
+
+            safety = evaluate_move_safety(snake, next_direction, board)
+            if safety < min_safe_space:
+                continue
+
+            target_level = board.cells[target.y][target.x].contribution_level
+            rank = (
+                len(path),
+                0 if next_direction == snake.direction else 1,
+                -target_level,
+            )
+
+            if best_rank is None or rank < best_rank:
+                best_rank = rank
+                best_direction = next_direction
+
+        if best_direction is not None:
+            return best_direction
+
+        return self._best_survival_move(state, safe_moves)
 
     def _greedy_move(self, state: GameState) -> Direction:
         """Simple greedy strategy: move towards food if safe.

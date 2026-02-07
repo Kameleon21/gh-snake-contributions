@@ -8,11 +8,11 @@ on:
     inputs:
       theme:
         description: 'Theme override'
-        default: 'space'
+        default: 'default'
         type: choice
         options:
-          - space
           - default
+          - space
           - auto
           - halloween
           - winter
@@ -41,10 +41,15 @@ jobs:
 
       - name: Generate Snake Animation
         run: |
-          THEME="${{ github.event.inputs.theme || 'space' }}"
+          THEME="${{ github.event.inputs.theme || 'default' }}"
           uv run gh-snake-contributions \
             --username "${{ github.repository_owner }}" \
+            --mode food \
+            --ai-strategy commit_hunter \
+            --spawn-position lower_half_random \
             --theme "$THEME" \
+            --moves-per-second 8 \
+            --max-duration 12 \
             --output snake.gif
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

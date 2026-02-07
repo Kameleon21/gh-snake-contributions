@@ -25,6 +25,8 @@ class GameState:
     score: int
     tick: int
     status: GameStatus
+    show_snake: bool = True
+    show_food: bool = True
 
 
 @dataclass
@@ -46,7 +48,11 @@ class GameEngine:
         """Initialize the game components."""
         self.board = Board(self.config)
         self._collision_detector = CollisionDetector(self.board)
-        self._food_spawner = FoodSpawner(self.board, self.config.get_rng())
+        self._food_spawner = FoodSpawner(
+            self.board,
+            self.config.get_rng(),
+            mode=self.config.contribution_mode,
+        )
 
     def setup(self, contributions: list[list[int]] | None = None) -> None:
         """Set up the game with optional contribution data.
@@ -66,13 +72,20 @@ class GameEngine:
             direction=Direction.RIGHT,
         )
 
-        # Spawn initial food
-        self.food = self._food_spawner.spawn(self.snake.get_body_positions())
-
         # Reset game state
         self.score = 0
         self.tick = 0
         self.status = "running"
+
+        # Spawn initial food
+        self.food = self._food_spawner.spawn(self.snake.get_body_positions())
+
+        if (
+            self.config.contribution_mode == "food"
+            and self.food is None
+            and self.board.count_contribution_cells() == 0
+        ):
+            self.status = "won"
 
     def _find_start_position(self) -> Position:
         """Find a valid starting position for the snake.
@@ -80,18 +93,17 @@ class GameEngine:
         Returns:
             A position where the snake can start.
         """
-        # Try to start near the left side with room for initial length
-        for y in range(self.board.height // 2 - 2, self.board.height // 2 + 3):
-            for x in range(self.config.initial_length + 1, self.board.width // 3):
-                # Check if there's room for the snake
-                pos = Position(x, y)
-                valid = True
-                for i in range(self.config.initial_length):
-                    check_pos = Position(x - i, y)
-                    if not self.board.is_walkable(check_pos):
-                        valid = False
-                        break
-                if valid:
+        preferred = self.config.spawn_position
+        fallback_order = ["bottom_center", "center", "legacy_left"]
+
+        strategies = [preferred]
+        for strategy in fallback_order:
+            if strategy not in strategies:
+                strategies.append(strategy)
+
+        for strategy in strategies:
+            for pos in self._spawn_candidates(strategy):
+                if self._is_valid_spawn(pos):
                     return pos
 
         # Fallback: find any valid position
@@ -102,6 +114,65 @@ class GameEngine:
 
         # Last resort: center of board
         return Position(self.board.width // 2, self.board.height // 2)
+
+    def _is_valid_spawn(self, head_pos: Position) -> bool:
+        """Check if the full initial snake body fits from a head position."""
+        for i in range(self.config.initial_length):
+            check_pos = Position(head_pos.x - i, head_pos.y)
+            if not self.board.is_walkable(check_pos):
+                return False
+        return True
+
+    def _spawn_candidates(self, strategy: str) -> list[Position]:
+        """Generate head-position candidates for a spawn strategy."""
+        x_min = self.config.initial_length - 1
+        x_max = self.board.width - 1
+        if x_min > x_max:
+            return []
+
+        if strategy == "lower_half_random":
+            y_start = self.board.height // 2
+            candidates = [
+                Position(x, y)
+                for y in range(y_start, self.board.height)
+                for x in range(x_min, x_max + 1)
+            ]
+            self.config.get_rng().shuffle(candidates)
+            return candidates
+
+        if strategy == "bottom_center":
+            anchor = Position(self.board.width // 2, self.board.height - 1)
+            return self._radial_candidates(anchor, x_min, x_max)
+
+        if strategy == "center":
+            anchor = Position(self.board.width // 2, self.board.height // 2)
+            return self._radial_candidates(anchor, x_min, x_max)
+
+        # legacy_left strategy
+        candidates: list[Position] = []
+        for y in range(self.board.height // 2 - 2, self.board.height // 2 + 3):
+            if y < 0 or y >= self.board.height:
+                continue
+            for x in range(self.config.initial_length + 1, self.board.width // 3):
+                if x_min <= x <= x_max:
+                    candidates.append(Position(x, y))
+        return candidates
+
+    def _radial_candidates(self, anchor: Position, x_min: int, x_max: int) -> list[Position]:
+        """Return board positions sorted by distance to anchor."""
+        candidates = [
+            Position(x, y)
+            for y in range(self.board.height)
+            for x in range(x_min, x_max + 1)
+        ]
+        candidates.sort(
+            key=lambda pos: (
+                abs(pos.x - anchor.x) + abs(pos.y - anchor.y),
+                abs(pos.y - anchor.y),
+                abs(pos.x - anchor.x),
+            )
+        )
+        return candidates
 
     def get_state(self) -> GameState:
         """Get the current game state.
@@ -140,8 +211,16 @@ class GameEngine:
             self.status = "collision"
             return self.get_state()
 
-        # Check for food
-        if self._collision_detector.check_food_collision(self.snake, self.food):
+        # Check for food / commit consumption
+        if self.config.contribution_mode == "food":
+            # In food mode, any contribution cell the snake visits is consumed.
+            consumed = self.board.consume_contribution(self.snake.head)
+            if consumed:
+                self.snake.grow()
+                self.score += 1
+                if self.food == self.snake.head:
+                    self.food = None
+        elif self._collision_detector.check_food_collision(self.snake, self.food):
             self.snake.grow()
             self.score += 1
             self.food = None
@@ -151,6 +230,14 @@ class GameEngine:
             self.food,
             self.snake.get_body_positions(),
         )
+
+        if (
+            self.config.contribution_mode == "food"
+            and self.food is None
+            and self.board.count_contribution_cells() == 0
+        ):
+            self.status = "won"
+            return self.get_state()
 
         # Check for win condition (no more empty cells)
         if self.food is None:

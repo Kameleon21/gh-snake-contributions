@@ -14,19 +14,26 @@ class Config:
     width: int = 52  # Matches GitHub's 52 weeks
     height: int = 7  # Matches GitHub's 7 days
     cell_size: int = 15  # 52*15 = 780px width, fits README
-    contribution_mode: Literal["walls", "food", "speed"] = "walls"
+    contribution_mode: Literal["walls", "food", "speed"] = "food"
     wall_threshold: int = 5  # No walls by default (max contribution is 4)
 
     # Game settings
     initial_length: int = 3
     max_ticks: int = 500
+    spawn_position: Literal[
+        "legacy_left",
+        "center",
+        "bottom_center",
+        "lower_half_random",
+    ] = "lower_half_random"
 
     # AI settings
-    ai_strategy: Literal["greedy", "bfs_safe", "survival"] = "bfs_safe"
+    ai_strategy: Literal["greedy", "bfs_safe", "survival", "commit_hunter"] = "commit_hunter"
 
     # GIF settings
     fps: int = 12
-    max_duration: float = 8.0
+    moves_per_second: float = 8.0
+    max_duration: float = 12.0
     output_path: str = "snake.gif"
 
     # Theme settings

@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from .ai import AIController
@@ -60,8 +61,8 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         "-m",
         choices=["walls", "food", "speed"],
-        default="walls",
-        help="How contributions affect gameplay (default: walls)",
+        default="food",
+        help="How contributions affect gameplay (default: food)",
     )
     parser.add_argument(
         "--wall-threshold",
@@ -71,15 +72,21 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ai-strategy",
-        choices=["greedy", "bfs_safe", "survival"],
-        default="bfs_safe",
-        help="AI strategy for snake movement (default: bfs_safe)",
+        choices=["greedy", "bfs_safe", "survival", "commit_hunter"],
+        default="commit_hunter",
+        help="AI strategy for snake movement (default: commit_hunter)",
     )
     parser.add_argument(
         "--max-ticks",
         type=int,
         default=500,
         help="Maximum game ticks before timeout (default: 500)",
+    )
+    parser.add_argument(
+        "--spawn-position",
+        choices=["legacy_left", "center", "bottom_center", "lower_half_random"],
+        default="lower_half_random",
+        help="Snake spawn strategy (default: lower_half_random)",
     )
 
     # GIF settings
@@ -96,10 +103,16 @@ def parse_args() -> argparse.Namespace:
         help="Frames per second (default: 12)",
     )
     parser.add_argument(
-        "--max-duration",
+        "--moves-per-second",
         type=float,
         default=8.0,
-        help="Maximum animation duration in seconds (default: 8.0)",
+        help="Snake movement updates per second (default: 8.0)",
+    )
+    parser.add_argument(
+        "--max-duration",
+        type=float,
+        default=12.0,
+        help="Maximum animation duration in seconds (default: 12.0)",
     )
 
     # Theme settings
@@ -107,8 +120,8 @@ def parse_args() -> argparse.Namespace:
         "--theme",
         "-t",
         choices=["auto", "default", "halloween", "winter", "spring", "summer", "space"],
-        default="space",
-        help="Color theme (default: space)",
+        default="default",
+        help="Color theme (default: default)",
     )
 
     # Determinism
@@ -158,7 +171,9 @@ def main() -> int:
         wall_threshold=args.wall_threshold,
         ai_strategy=args.ai_strategy,
         max_ticks=args.max_ticks,
+        spawn_position=args.spawn_position,
         fps=args.fps,
+        moves_per_second=args.moves_per_second,
         max_duration=args.max_duration,
         output_path=args.output,
         theme_mode=theme_mode,
@@ -207,6 +222,16 @@ def main() -> int:
 
     max_frames = config.max_frames
     frame_count = 0
+    move_budget = 0.0
+
+    if config.contribution_mode == "food":
+        # Show the commit heatmap before the snake appears.
+        intro_frames = min(max_frames, max(1, config.fps))
+        intro_state = replace(engine.get_state(), show_snake=False, show_food=False)
+        for _ in range(intro_frames):
+            frame = canvas.render_frame(intro_state)
+            encoder.add_frame(frame)
+            frame_count += 1
 
     while engine.is_running() and frame_count < max_frames:
         # Get current state and render frame
@@ -214,9 +239,13 @@ def main() -> int:
         frame = canvas.render_frame(state)
         encoder.add_frame(frame)
 
-        # Get AI decision and step
-        direction = ai.get_next_direction(state)
-        engine.step(direction)
+        # Decouple rendering from movement: smooth frames with slower movement cadence.
+        move_budget += config.moves_per_second / config.fps
+        while move_budget >= 1.0 and engine.is_running():
+            step_state = engine.get_state()
+            direction = ai.get_next_direction(step_state)
+            engine.step(direction)
+            move_budget -= 1.0
 
         frame_count += 1
 

@@ -42,14 +42,18 @@ jobs:
 
 ## Options
 
-| Input          | Description                     | Default          |
-| -------------- | ------------------------------- | ---------------- |
-| `username`     | GitHub username                 | Repository owner |
-| `output`       | Output file path                | `snake.gif`      |
-| `mode`         | `walls`, `food`, or `speed`     | `walls`          |
-| `max_duration` | Animation length (seconds)      | `8.0`            |
-| `fps`          | Frames per second               | `12`             |
-| `seed`         | Random seed for reproducibility | -                |
+| Input              | Description                                                          | Default                |
+| ------------------ | -------------------------------------------------------------------- | ---------------------- |
+| `username`         | GitHub username                                                      | Repository owner       |
+| `output`           | Output file path                                                     | `snake.gif`            |
+| `theme`            | `auto`, `default`, `halloween`, `winter`, `spring`, `summer`, `space` | `default`              |
+| `mode`             | `walls`, `food`, or `speed`                                          | `food`                 |
+| `ai_strategy`      | `greedy`, `bfs_safe`, `survival`, `commit_hunter`                    | `commit_hunter`        |
+| `spawn_position`   | `legacy_left`, `center`, `bottom_center`, `lower_half_random`        | `lower_half_random`    |
+| `moves_per_second` | Snake movement updates per second                                    | `8.0`                  |
+| `max_duration`     | Animation length (seconds)                                           | `12.0`                 |
+| `fps`              | Frames per second                                                    | `12`                   |
+| `seed`             | Random seed for reproducibility                                      | -                      |
 
 ## Inspired By
 

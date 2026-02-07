@@ -17,11 +17,19 @@ inputs:
   theme:
     description: 'Color theme (auto, default, halloween, winter, spring, summer)'
     required: false
-    default: 'auto'
+    default: 'default'
   mode:
     description: 'Contribution mode (walls, food, speed)'
     required: false
-    default: 'walls'
+    default: 'food'
+  ai_strategy:
+    description: 'AI strategy (greedy, bfs_safe, survival, commit_hunter)'
+    required: false
+    default: 'commit_hunter'
+  spawn_position:
+    description: 'Snake spawn strategy (legacy_left, center, bottom_center, lower_half_random)'
+    required: false
+    default: 'lower_half_random'
   width:
     description: 'Board width in cells'
     required: false
@@ -34,10 +42,14 @@ inputs:
     description: 'Frames per second'
     required: false
     default: '12'
+  moves_per_second:
+    description: 'Snake movement updates per second'
+    required: false
+    default: '8.0'
   max_duration:
     description: 'Maximum animation duration in seconds'
     required: false
-    default: '8.0'
+    default: '12.0'
   seed:
     description: 'Random seed for deterministic output'
     required: false
@@ -81,9 +93,12 @@ runs:
           --output "${{ github.workspace }}/${{ inputs.output }}" \
           --theme "${{ inputs.theme }}" \
           --mode "${{ inputs.mode }}" \
+          --ai-strategy "${{ inputs.ai_strategy }}" \
+          --spawn-position "${{ inputs.spawn_position }}" \
           --width "${{ inputs.width }}" \
           --height "${{ inputs.height }}" \
           --fps "${{ inputs.fps }}" \
+          --moves-per-second "${{ inputs.moves_per_second }}" \
           --max-duration "${{ inputs.max_duration }}" \
           $SEED_ARG
         echo "output_path=${{ github.workspace }}/${{ inputs.output }}" >> $GITHUB_OUTPUT
