@@ -2,6 +2,7 @@
 
 import random
 from dataclasses import dataclass
+from typing import Literal
 
 from .board import Board, Position
 
@@ -12,6 +13,7 @@ class FoodSpawner:
 
     board: Board
     rng: random.Random
+    mode: Literal["walls", "food", "speed"] = "walls"
 
     def spawn(self, occupied: set[Position]) -> Position | None:
         """Spawn food at a random empty position.
@@ -22,6 +24,15 @@ class FoodSpawner:
         Returns:
             The position where food was spawned, or None if no space.
         """
+        if self.mode == "food":
+            contribution_positions = self.board.get_contribution_positions(
+                exclude=occupied,
+                min_level=1,
+            )
+            if not contribution_positions:
+                return None
+            return self.rng.choice(contribution_positions)
+
         empty_positions = self.board.get_empty_positions(exclude=occupied)
 
         if not empty_positions:

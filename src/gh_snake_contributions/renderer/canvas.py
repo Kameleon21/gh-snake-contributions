@@ -161,7 +161,11 @@ class Canvas:
             draw: ImageDraw object.
             state: Game state.
         """
-        if state.food is None:
+        if (
+            self.config.contribution_mode == "food"
+            or not state.show_food
+            or state.food is None
+        ):
             return
 
         rect = self._cell_rect(state.food)
@@ -182,6 +186,9 @@ class Canvas:
             draw: ImageDraw object.
             state: Game state.
         """
+        if not state.show_snake:
+            return
+
         snake = state.snake
         body_list = list(snake.body)
 

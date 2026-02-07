@@ -2,6 +2,7 @@
 
 import pytest
 
+from gh_snake_contributions.ai.controller import AIController
 from gh_snake_contributions.config import Config
 from gh_snake_contributions.game.board import Board, CellType, Position
 from gh_snake_contributions.game.collision import CollisionDetector, CollisionType
@@ -109,7 +110,7 @@ class TestBoard:
         assert not board.is_valid_position(Position(10, 0))
 
     def test_board_apply_contributions(self):
-        config = Config(width=10, height=7, wall_threshold=3)
+        config = Config(width=10, height=7, wall_threshold=3, contribution_mode="walls")
         board = Board(config)
 
         # Simple contributions with some high values
@@ -141,6 +142,21 @@ class TestBoard:
         # Make a cell a wall
         board.cells[5][5].cell_type = CellType.WALL
         assert not board.is_walkable(Position(5, 5))
+
+    def test_board_contribution_positions_and_consume(self):
+        config = Config(width=4, height=3)
+        board = Board(config)
+        board.cells[0][1].contribution_level = 2
+        board.cells[2][3].contribution_level = 4
+
+        positions = board.get_contribution_positions()
+        assert Position(1, 0) in positions
+        assert Position(3, 2) in positions
+        assert board.count_contribution_cells() == 2
+
+        assert board.consume_contribution(Position(1, 0))
+        assert board.cells[0][1].contribution_level == 0
+        assert board.count_contribution_cells() == 1
 
 
 class TestCollisionDetector:
@@ -200,12 +216,31 @@ class TestFoodSpawner:
         assert food is not None
         assert food not in occupied
 
+    def test_food_mode_spawns_only_on_contribution_cells(self):
+        config = Config(width=4, height=4, seed=42, contribution_mode="food")
+        board = Board(config)
+        board.cells[0][1].contribution_level = 1
+        board.cells[2][3].contribution_level = 4
+        spawner = FoodSpawner(board, config.get_rng(), mode="food")
+
+        for _ in range(10):
+            food = spawner.spawn(set())
+            assert food in {Position(1, 0), Position(3, 2)}
+
+    def test_food_mode_returns_none_when_no_contributions_left(self):
+        config = Config(width=4, height=4, seed=42, contribution_mode="food")
+        board = Board(config)
+        spawner = FoodSpawner(board, config.get_rng(), mode="food")
+
+        food = spawner.spawn(set())
+        assert food is None
+
 
 class TestGameEngine:
     """Tests for GameEngine class."""
 
     def test_engine_setup(self):
-        config = Config(width=20, height=10, seed=42)
+        config = Config(width=20, height=10, seed=42, contribution_mode="walls")
         engine = GameEngine(config)
         engine.setup()
 
@@ -214,7 +249,7 @@ class TestGameEngine:
         assert engine.food is not None
 
     def test_engine_step(self):
-        config = Config(width=20, height=10, seed=42)
+        config = Config(width=20, height=10, seed=42, contribution_mode="walls")
         engine = GameEngine(config)
         engine.setup()
 
@@ -224,7 +259,7 @@ class TestGameEngine:
         assert engine.tick == initial_tick + 1
 
     def test_engine_collision_ends_game(self):
-        config = Config(width=5, height=5, seed=42)
+        config = Config(width=5, height=5, seed=42, contribution_mode="walls")
         engine = GameEngine(config)
         engine.setup()
 
@@ -235,7 +270,13 @@ class TestGameEngine:
         assert engine.status == "collision"
 
     def test_engine_with_contributions(self):
-        config = Config(width=10, height=7, seed=42, wall_threshold=4)
+        config = Config(
+            width=10,
+            height=7,
+            seed=42,
+            wall_threshold=4,
+            contribution_mode="walls",
+        )
         engine = GameEngine(config)
 
         contributions = [
@@ -250,3 +291,103 @@ class TestGameEngine:
         engine.setup(contributions)
 
         assert engine.is_running()
+
+    def test_engine_food_mode_consumes_contribution_cell(self):
+        config = Config(width=10, height=7, seed=42, contribution_mode="food")
+        engine = GameEngine(config)
+        contributions = [[1 for _ in range(10)] for _ in range(7)]
+        engine.setup(contributions)
+
+        target = engine.snake.head + Direction.RIGHT.value
+        assert engine.board.is_walkable(target)
+
+        engine.board.cells[target.y][target.x].contribution_level = 3
+        engine.food = target
+
+        engine.step(Direction.RIGHT)
+
+        assert engine.score == 1
+        assert engine.board.cells[target.y][target.x].contribution_level == 0
+
+    def test_engine_food_mode_consumes_non_target_contribution_cell(self):
+        config = Config(width=10, height=7, seed=42, contribution_mode="food")
+        engine = GameEngine(config)
+        contributions = [[1 for _ in range(10)] for _ in range(7)]
+        engine.setup(contributions)
+
+        head = engine.snake.head
+        step_direction = None
+        for candidate in (Direction.RIGHT, Direction.DOWN, Direction.UP):
+            candidate_pos = head + candidate.value
+            if engine.board.is_walkable(candidate_pos):
+                step_direction = candidate
+                next_pos = candidate_pos
+                break
+
+        assert step_direction is not None
+
+        food_pos = None
+        for candidate in (Direction.DOWN, Direction.UP, Direction.LEFT, Direction.RIGHT):
+            candidate_pos = head + candidate.value
+            if candidate_pos != next_pos and engine.board.is_walkable(candidate_pos):
+                food_pos = candidate_pos
+                break
+
+        assert engine.board.is_walkable(next_pos)
+        assert food_pos is not None
+
+        engine.board.cells[next_pos.y][next_pos.x].contribution_level = 2
+        engine.board.cells[food_pos.y][food_pos.x].contribution_level = 3
+        engine.food = food_pos
+
+        engine.step(step_direction)
+
+        assert engine.score == 1
+        assert engine.board.cells[next_pos.y][next_pos.x].contribution_level == 0
+        assert engine.food == food_pos
+
+    def test_engine_spawn_lower_half_random(self):
+        config = Config(
+            width=20,
+            height=10,
+            seed=42,
+            contribution_mode="walls",
+            spawn_position="lower_half_random",
+        )
+        engine = GameEngine(config)
+        engine.setup()
+
+        assert engine.snake.head.y >= config.height // 2
+        for pos in engine.snake.body:
+            assert engine.board.is_walkable(pos)
+
+    def test_engine_pacing_moves_slower_than_frames(self):
+        config = Config(
+            width=30,
+            height=12,
+            seed=42,
+            contribution_mode="walls",
+            ai_strategy="survival",
+            fps=12,
+            moves_per_second=8.0,
+            max_duration=2.0,
+        )
+        engine = GameEngine(config)
+        engine.setup()
+        ai = AIController(config)
+
+        frame_count = 0
+        move_budget = 0.0
+        max_frames = config.max_frames
+
+        while engine.is_running() and frame_count < max_frames:
+            move_budget += config.moves_per_second / config.fps
+            while move_budget >= 1.0 and engine.is_running():
+                direction = ai.get_next_direction(engine.get_state())
+                engine.step(direction)
+                move_budget -= 1.0
+            frame_count += 1
+
+        expected_ticks = int(frame_count * config.moves_per_second / config.fps)
+        assert engine.tick < frame_count
+        assert abs(engine.tick - expected_ticks) <= 1

@@ -111,3 +111,62 @@ class Board:
                 if self.is_walkable(pos) and pos not in exclude:
                     positions.append(pos)
         return positions
+
+    def get_contribution_positions(
+        self,
+        exclude: set[Position] | None = None,
+        min_level: int = 1,
+    ) -> list[Position]:
+        """Get all walkable positions with contribution intensity.
+
+        Args:
+            exclude: Positions to exclude (e.g., snake body).
+            min_level: Minimum contribution level to include.
+
+        Returns:
+            List of positions with contribution level >= min_level.
+        """
+        exclude = exclude or set()
+        positions: list[Position] = []
+
+        for y in range(self.height):
+            for x in range(self.width):
+                pos = Position(x, y)
+                if pos in exclude or not self.is_walkable(pos):
+                    continue
+                if self.cells[y][x].contribution_level >= min_level:
+                    positions.append(pos)
+
+        return positions
+
+    def consume_contribution(self, pos: Position) -> bool:
+        """Clear contribution intensity at a position.
+
+        Args:
+            pos: Position to clear.
+
+        Returns:
+            True if a contribution cell was cleared.
+        """
+        if not self.is_valid_position(pos):
+            return False
+
+        cell = self.cells[pos.y][pos.x]
+        if cell.contribution_level <= 0:
+            return False
+
+        cell.contribution_level = 0
+        return True
+
+    def count_contribution_cells(self, min_level: int = 1) -> int:
+        """Count walkable cells with contribution intensity."""
+        count = 0
+        for y in range(self.height):
+            for x in range(self.width):
+                pos = Position(x, y)
+                if (
+                    self.is_walkable(pos)
+                    and self.cells[y][x].contribution_level >= min_level
+                ):
+                    count += 1
+        return count

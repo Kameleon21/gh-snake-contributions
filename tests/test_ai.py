@@ -3,10 +3,14 @@
 import pytest
 
 from gh_snake_contributions.ai.controller import AIController
-from gh_snake_contributions.ai.pathfinding import bfs_path, evaluate_move_safety, find_safe_moves
+from gh_snake_contributions.ai.pathfinding import (
+    bfs_path,
+    evaluate_move_safety,
+    find_safe_moves,
+)
 from gh_snake_contributions.config import Config
 from gh_snake_contributions.game.board import Board, CellType, Position
-from gh_snake_contributions.game.engine import GameEngine
+from gh_snake_contributions.game.engine import GameEngine, GameState
 from gh_snake_contributions.game.snake import Direction, Snake
 
 
@@ -111,7 +115,13 @@ class TestAIController:
     """Tests for AIController class."""
 
     def test_ai_greedy_strategy(self):
-        config = Config(width=20, height=10, seed=42, ai_strategy="greedy")
+        config = Config(
+            width=20,
+            height=10,
+            seed=42,
+            ai_strategy="greedy",
+            contribution_mode="walls",
+        )
         engine = GameEngine(config)
         engine.setup()
         ai = AIController(config)
@@ -121,7 +131,13 @@ class TestAIController:
         assert isinstance(direction, Direction)
 
     def test_ai_bfs_safe_strategy(self):
-        config = Config(width=20, height=10, seed=42, ai_strategy="bfs_safe")
+        config = Config(
+            width=20,
+            height=10,
+            seed=42,
+            ai_strategy="bfs_safe",
+            contribution_mode="walls",
+        )
         engine = GameEngine(config)
         engine.setup()
         ai = AIController(config)
@@ -130,7 +146,13 @@ class TestAIController:
         assert isinstance(direction, Direction)
 
     def test_ai_survival_strategy(self):
-        config = Config(width=20, height=10, seed=42, ai_strategy="survival")
+        config = Config(
+            width=20,
+            height=10,
+            seed=42,
+            ai_strategy="survival",
+            contribution_mode="walls",
+        )
         engine = GameEngine(config)
         engine.setup()
         ai = AIController(config)
@@ -138,8 +160,70 @@ class TestAIController:
         direction = ai.get_next_direction(engine.get_state())
         assert isinstance(direction, Direction)
 
+    def test_ai_commit_hunter_prefers_continuing_direction_on_tie(self):
+        config = Config(
+            width=7,
+            height=7,
+            seed=42,
+            ai_strategy="commit_hunter",
+            contribution_mode="food",
+        )
+        board = Board(config)
+        board.cells[3][4].contribution_level = 2  # RIGHT
+        board.cells[2][3].contribution_level = 2  # UP (same distance)
+
+        snake = Snake.create(Position(3, 3), length=1, direction=Direction.RIGHT)
+        state = GameState(
+            board=board,
+            snake=snake,
+            food=Position(4, 3),
+            score=0,
+            tick=0,
+            status="running",
+        )
+
+        ai = AIController(config)
+        direction = ai.get_next_direction(state)
+        assert direction == Direction.RIGHT
+
+    def test_ai_commit_hunter_falls_back_to_survival_when_targets_blocked(self):
+        config = Config(
+            width=5,
+            height=5,
+            seed=42,
+            ai_strategy="commit_hunter",
+            contribution_mode="food",
+        )
+        board = Board(config)
+        board.cells[4][4].contribution_level = 4
+
+        # Force only one safe move (DOWN).
+        board.cells[1][0].cell_type = CellType.WALL
+        board.cells[0][1].cell_type = CellType.WALL
+        board.cells[1][2].cell_type = CellType.WALL
+
+        snake = Snake.create(Position(1, 1), length=1, direction=Direction.RIGHT)
+        state = GameState(
+            board=board,
+            snake=snake,
+            food=Position(4, 4),
+            score=0,
+            tick=0,
+            status="running",
+        )
+
+        ai = AIController(config)
+        direction = ai.get_next_direction(state)
+        assert direction == Direction.DOWN
+
     def test_ai_plays_game(self):
-        config = Config(width=15, height=10, seed=42, max_ticks=100)
+        config = Config(
+            width=15,
+            height=10,
+            seed=42,
+            max_ticks=100,
+            contribution_mode="walls",
+        )
         engine = GameEngine(config)
         engine.setup()
         ai = AIController(config)
@@ -171,7 +255,6 @@ class TestAIController:
         ai = AIController(config)
 
         # Create a minimal game state
-        from gh_snake_contributions.game.engine import GameState
         state = GameState(
             board=board,
             snake=snake,
